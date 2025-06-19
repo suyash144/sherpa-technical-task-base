@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+openai
+faiss-cpu
+pydantic-settings
+python-multipart
+pypdf
+python-dotenv
+numpy

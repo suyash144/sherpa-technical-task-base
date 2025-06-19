@@ -1,0 +1,30 @@
+services:
+  web:
+    build:
+      context: .
+    container_name: sherpa_technical_task_backend
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app/src --log-level debug
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 10s
+      retries: 5
+    volumes:
+      - ./src:/app/src
+      - ./data/uploads:/app/data/uploads          # Uploaded files
+      - ./data/documents:/app/data/documents      # Processed documents  
+      - ./data/vector_store:/app/data/vector_store # Vector embeddings/index
+      - ./data/logs:/app/data/logs                # Application logs
+    working_dir: /app
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/app/src"
+      # Environment variables for data paths
+      UPLOAD_DIR: "/app/data/uploads"
+      DOCUMENTS_DIR: "/app/data/documents"
+      VECTOR_STORE_DIR: "/app/data/vector_store"
+      LOGS_DIR: "/app/data/logs"
+    env_file:
+      - .env
