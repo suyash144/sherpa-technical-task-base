@@ -1,14 +1,19 @@
-Sherpa Technical Task
+# Sherpa Technical Task
 
-📌 Context
+## 📌 Context
 
 At Sherpa, we build AI-enabled software for management consulting and professional services firms. Our applications frequently process complex, unstructured data from documents such as PDFs, Word files, and presentations. Our solutions must be secure, scalable, and tailored for enterprise-grade reliability.
 
-You’ve been provided with a fully-functional MVP—a chatbot integrated with Retrieval-Augmented Generation (RAG)—built using FastAPI (Python backend) and React (TypeScript frontend). Your task is to enhance this chatbot by extending its functionality, performance, or user experience.
+You’ve been provided with a fully-functional MVP—a chatbot integrated with Retrieval-Augmented Generation (RAG)—built using FastAPI (Python backend) and React (TypeScript frontend). 
+
+> Note: We have provided an optional set of ~20 complex consulting documents for you to test the vector store with. If you would like to change this, or add new documents of different modalities, you are more than welcome to.
+
+
+Your have 4 hours to enhance this chatbot by extending its functionality, performance, or user experience.
 
 ---
 
-🚩 Objective
+## 🚩 Objective
 
 Your goal is to demonstrate your applied AI and engineering skills by making meaningful improvements to the provided MVP. You can choose to focus deeply on a single enhancement or implement several lighter improvements across multiple areas, depending on your interests and strengths.
 
@@ -16,7 +21,7 @@ We encourage creativity and practical innovation. Your enhancements should clear
 
 ---
 
-🛠️ What You’re Starting With
+## 🛠️ What You’re Starting With
 
 Backend (Python / FastAPI)
 - Chat endpoint with streaming token responses via Server-Sent Events.
@@ -35,27 +40,43 @@ Frontend (React / TypeScript)
 
 To run the provided solution:
 
-# Backend
-`cd backend`
+### Backend
+```bash
+cd backend
+```
 1. Initial Set Up (Creating the volumes, blank .env and relevant instalations using UV)
-`./setup.sh`
+```bash
+./setup.sh
+```
 2. Build the Docker container
-`docker-compose build --no-cache`
-3. Run the docker container (# available at http://localhost:8080)
-`docker-compose up -d`
+```bash
+docker-compose build --no-cache
+```
+3. Run the docker container (available at http://localhost:8080)
+```bash
+docker-compose up
+```
 
-# Frontend
-`cd frontend`
+### Frontend
+```bash
+cd frontend
+```
 1. Install the relevant packages
-`npm install`
+```bash
+npm install
+```
 2. Build the Docker container
-`docker-compose build --no-cache`
-3. Run the docker container (# available at http://localhost:3000)
-`docker-compose up`
+```bash
+docker-compose build --no-cache
+```
+3. Run the docker container (available at http://localhost:3000)
+```bash
+docker-compose up
+```
 
 ---
 
-🚀 Potential Enhancements
+## 🚀 Potential Enhancements
 
 Below is a list of suggested directions you could pursue, grouped into thematic areas. You are free to choose from any of the below, or choose your own.
 
@@ -89,7 +110,7 @@ E. Advanced RAG Enhancements
 
 ---
 
-✅ Deliverables
+## ✅ Deliverables
 
 Essential
 	1.	A fully functional and clearly organized repository fork with comprehensible commit messages.
@@ -97,6 +118,7 @@ Essential
 - An overview of your enhancements.
 - Justification for chosen solutions and their implementation.
 - Clear setup instructions (extending the existing Docker preferred).
+> Warning: I will not be going out of my way to resolve environment and dependency issues when trying to run your solution locally. We understand that DevOps can be difficult, so we will give candidates 1 extra chance to fix env issues if we can't build your solution first time.
 - Any limitations or future improvement areas identified.
 
 Optional (but encouraged)
@@ -104,7 +126,7 @@ Optional (but encouraged)
 
 ---
 
-🚨 Evaluation Criteria
+## 🚨 Evaluation Criteria
 
 We will assess your submission based on:
 - Functionality and robustness of your enhancements.
@@ -112,12 +134,10 @@ We will assess your submission based on:
 - Practicality and creativity in solving real-world problems.
 - Code quality, readability, and maintainability.
 
-Remember, we’re not necessarily looking for a fully-polished enterprise-grade solution, but rather evidence of thoughtful, practical problem-solving and clear communication of your engineering choices. You will have a follow up meeting to explain how you would take scale such a system to be production-grade.
-
----
-
-📅 Next Steps
+Remember, we’re not necessarily looking for a fully-polished enterprise-grade solution, but rather evidence of thoughtful, practical problem-solving and clear communication of your engineering choices.
 
 After reviewing your submission, successful candidates will be invited to a follow-up meeting to discuss your solution, thought process, and how you envision scaling your enhancements in a production environment.
 
 Good luck, and enjoy the challenge!
+
+> **Disclaimer:** No code submitted by any candidate will be used by Sherpa in development or production scenarios. 

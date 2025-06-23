@@ -51,8 +51,7 @@ fi
 
 # Check if uv is installed
 if command -v uv &> /dev/null; then
-    echo "⚡ UV detected! You can use 'uv sync' for fast dependency management"
-    echo "   Run: uv sync"
+    echo "⚡ UV detected!"
     
     # Offer to update requirements.txt
     echo ""
@@ -63,6 +62,10 @@ if command -v uv &> /dev/null; then
         uv export --format requirements-txt --output-file requirements.txt
         echo "✅ requirements.txt updated successfully!"
     fi
+
+    echo "🔄 Running uv sync..."
+    uv sync
+    echo "✅ uv sync complete!"
 else
     echo "🐍 UV not found. You can install it with: pip install uv"
     echo "   Or use regular pip: pip install -r requirements.txt"
