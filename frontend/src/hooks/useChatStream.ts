@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { parseSSE } from "../lib/sse";
+import { parseSSE } from "../lib/sse.js";
 import { ChatMessage, SourceReference } from "../types";
 
 export function useChatStream(sessionId: string, onMessageSent?: () => void) {
