@@ -42,11 +42,10 @@ export function Markdown({ content }: MarkdownProps) {
 
   const renderInlineMarkdown = (text: string): (string | JSX.Element)[] => {
     const parts: (string | JSX.Element)[] = [];
-    let currentText = text;
     let keyCounter = 0;
 
     // Handle line breaks
-    const lines = currentText.split('\n');
+    const lines = text.split('\n');
     for (let i = 0; i < lines.length; i++) {
       if (i > 0) {
         parts.push(<br key={`br-${keyCounter++}`} />);
@@ -120,77 +119,99 @@ export function Markdown({ content }: MarkdownProps) {
   };
 
   const processInlineFormatting = (text: string, baseKey: number): (string | JSX.Element)[] => {
-    const parts: (string | JSX.Element)[] = [];
-    let currentText = text;
     let keyCounter = baseKey;
 
     // Handle inline code first (to preserve it from other formatting)
     const inlineCodeRegex = /`([^`]+)`/g;
-    const codeMatches: Array<{ match: RegExpExecArray; replacement: JSX.Element }> = [];
+    let processedText = text;
+    const codeElements: JSX.Element[] = [];
     let match;
 
+    // Replace inline code with placeholders
     while ((match = inlineCodeRegex.exec(text)) !== null) {
       const codeElement = (
-        <code key={`code-${keyCounter++}`} className="bg-gray-200 px-1 rounded text-sm font-mono">
+        <code key={`code-${keyCounter}`} className="bg-gray-200 px-1 rounded text-sm font-mono">
           {match[1]}
         </code>
       );
-      codeMatches.push({ match, replacement: codeElement });
+      codeElements.push(codeElement);
+      processedText = processedText.replace(match[0], `__CODE_${keyCounter}__`);
+      keyCounter++;
     }
 
-    // Replace from end to start to maintain indices
-    codeMatches.reverse().forEach(({ match, replacement }) => {
-      const before = currentText.slice(0, match.index);
-      const after = currentText.slice(match.index! + match[0].length);
-      
-      // Process formatting in the parts before and after
-      const afterParts = after ? processOtherFormatting(after, keyCounter++) : [];
-      const beforeParts = before ? processOtherFormatting(before, keyCounter++) : [];
-      
-      parts.unshift(...afterParts);
-      parts.unshift(replacement);
-      parts.unshift(...beforeParts);
-      
-      currentText = currentText.slice(0, match.index);
-    });
+    // Process other formatting
+    const formattedParts = processOtherFormatting(processedText, keyCounter);
 
-    // If no inline code was found, process other formatting
-    if (codeMatches.length === 0) {
-      parts.push(...processOtherFormatting(currentText, keyCounter));
+    // Replace code placeholders with actual elements
+    const finalParts: (string | JSX.Element)[] = [];
+    for (const part of formattedParts) {
+      if (typeof part === 'string') {
+        const codeRegex = /__CODE_(\d+)__/g;
+        let lastIndex = 0;
+        let codeMatch;
+
+        while ((codeMatch = codeRegex.exec(part)) !== null) {
+          // Add text before code
+          if (codeMatch.index > lastIndex) {
+            const textBefore = part.slice(lastIndex, codeMatch.index);
+            if (textBefore) finalParts.push(textBefore);
+          }
+
+          // Add code element
+          const codeIndex = parseInt(codeMatch[1]) - baseKey;
+          if (codeElements[codeIndex]) {
+            finalParts.push(codeElements[codeIndex]);
+          }
+
+          lastIndex = codeMatch.index + codeMatch[0].length;
+        }
+
+        // Add remaining text
+        if (lastIndex < part.length) {
+          const remainingText = part.slice(lastIndex);
+          if (remainingText) finalParts.push(remainingText);
+        }
+
+        // If no code was found, add the original part
+        if (lastIndex === 0) {
+          finalParts.push(part);
+        }
+      } else {
+        finalParts.push(part);
+      }
     }
 
-    return parts;
+    return finalParts;
   };
 
   const processOtherFormatting = (text: string, baseKey: number): (string | JSX.Element)[] => {
-    // Handle bold, italic, etc.
-    let result = text;
-    const elements: JSX.Element[] = [];
+    const elements = new Map<string, JSX.Element>();
     let keyCounter = baseKey;
+    let result = text;
 
     // Bold (**text** or __text__)
-    result = result.replace(/\*\*(.*?)\*\*/g, (_, content) => {
+    result = result.replace(/\*\*(.*?)\*\*/g, (match, content) => {
       const key = `bold-${keyCounter++}`;
-      elements.push(<strong key={key}>{content}</strong>);
+      elements.set(key, <strong key={key}>{content}</strong>);
       return `__ELEMENT_${key}__`;
     });
 
-    result = result.replace(/__(.*?)__/g, (_, content) => {
+    result = result.replace(/__(.*?)__/g, (match, content) => {
       const key = `bold-${keyCounter++}`;
-      elements.push(<strong key={key}>{content}</strong>);
+      elements.set(key, <strong key={key}>{content}</strong>);
       return `__ELEMENT_${key}__`;
     });
 
-    // Italic (*text* or _text_)
-    result = result.replace(/\*(.*?)\*/g, (_, content) => {
+    // Italic (*text* or _text_) - but not if it's part of bold
+    result = result.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, (match, content) => {
       const key = `italic-${keyCounter++}`;
-      elements.push(<em key={key}>{content}</em>);
+      elements.set(key, <em key={key}>{content}</em>);
       return `__ELEMENT_${key}__`;
     });
 
-    result = result.replace(/_(.*?)_/g, (_, content) => {
+    result = result.replace(/(?<!_)_([^_]+?)_(?!_)/g, (match, content) => {
       const key = `italic-${keyCounter++}`;
-      elements.push(<em key={key}>{content}</em>);
+      elements.set(key, <em key={key}>{content}</em>);
       return `__ELEMENT_${key}__`;
     });
 
@@ -209,8 +230,10 @@ export function Markdown({ content }: MarkdownProps) {
 
       // Add element
       const elementKey = elementMatch[1];
-      const element = elements.find(el => el.key === elementKey);
-      if (element) parts.push(element);
+      const element = elements.get(elementKey);
+      if (element) {
+        parts.push(element);
+      }
 
       lastIndex = elementMatch.index + elementMatch[0].length;
     }
@@ -229,5 +252,5 @@ export function Markdown({ content }: MarkdownProps) {
     return parts;
   };
 
-  return <div className="markdown-content">{renderMarkdown(content)}</div>;
+  return <div className="markdown-content space-y-1">{renderMarkdown(content)}</div>;
 } 

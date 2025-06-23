@@ -16,6 +16,7 @@ services:
       - ./data/documents:/app/data/documents      # Processed documents  
       - ./data/vector_store:/app/data/vector_store # Vector embeddings/index
       - ./data/logs:/app/data/logs                # Application logs
+      - ./data/database:/app/data/database        # Database storage
     working_dir: /app
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
@@ -26,5 +27,7 @@ services:
       DOCUMENTS_DIR: "/app/data/documents"
       VECTOR_STORE_DIR: "/app/data/vector_store"
       LOGS_DIR: "/app/data/logs"
+      # Database configuration
+      DATABASE_URL: "sqlite:///./data/database/chat_history.db"
     env_file:
       - .env

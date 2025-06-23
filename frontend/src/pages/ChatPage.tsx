@@ -1,30 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ChatBubble } from "../components/ChatBubble";
 import { Sidebar } from "../components/Sidebar";
 import { useChatStream } from "../hooks/useChatStream";
 import { cn } from "../utils";
 import { Link } from "react-router-dom";
+import { Plus } from "lucide-react";
+
+interface ChatSession {
+  id: string;
+  title: string;
+  last_message?: string;
+}
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState(() => {
     const param = new URLSearchParams(window.location.search).get("session");
     return param || crypto.randomUUID();
   });
-  const { messages, sendMessage, loadHistory, isThinking } = useChatStream(sessionId);
   const [input, setInput] = useState("");
-  const [sessions, setSessions] = useState<Array<{id: string; title: string; lastMessage?: string}>>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadHistory();
-    loadSessions();
-  }, [loadHistory]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     try {
       const response = await fetch('/api/chat/sessions');
       if (response.ok) {
@@ -34,7 +31,19 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to load sessions:', error);
     }
-  };
+  }, []);
+
+  // Use the chat stream hook with the loadSessions callback
+  const { messages, sendMessage, loadHistory, isThinking } = useChatStream(sessionId, loadSessions);
+
+  useEffect(() => {
+    loadHistory();
+    loadSessions();
+  }, [loadHistory, loadSessions, sessionId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = () => {
     if (input.trim().length === 0) return;
@@ -43,6 +52,12 @@ export default function ChatPage() {
   };
 
   const handleSessionSelect = (newSessionId: string) => {
+    setSessionId(newSessionId);
+    window.history.pushState({}, '', `?session=${newSessionId}`);
+  };
+
+  const handleNewChat = () => {
+    const newSessionId = crypto.randomUUID();
     setSessionId(newSessionId);
     window.history.pushState({}, '', `?session=${newSessionId}`);
   };
@@ -57,11 +72,29 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar 
-        sessions={sessions}
+        sessions={sessions.map(s => ({
+          id: s.id,
+          title: s.title,
+          lastMessage: s.last_message
+        }))}
         currentSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
       >
-        <h2 className="font-semibold mb-4">RAG Chat</h2>
+        <div className="mb-6">
+          <h2 className="font-semibold mb-4">RAG Chat</h2>
+          <button
+            onClick={handleNewChat}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-4 py-2.5",
+              "bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium",
+              "transition-all duration-200 hover:shadow-md active:scale-95",
+              "border border-blue-700/20"
+            )}
+          >
+            <Plus size={18} />
+            New Chat
+          </button>
+        </div>
         <nav className="flex flex-col gap-2">
           <Link to="/" className="px-3 py-2 rounded bg-blue-100 text-blue-700 font-medium">
             Chat

@@ -1,37 +1,53 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import Iterator, Dict, List
 import json
-from src.models.chat import SimpleChatRequest, Message, StreamingChatMetadata, ChatResponse
+from sqlalchemy.orm import Session
+from src.models.chat import SimpleChatRequest, Message, StreamingChatMetadata, ChatResponse, ChatSessionCreate, ChatSessionsResponse, ChatHistoryResponse
+from src.models.database import get_db
+from src.services.chat_service import ChatService
 from src.services.openai_client import get_openai
 from src.services.rag import RAGEngine
 from src.settings import settings
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Simple in-memory conversation storage
-# In production, you'd want to use a database with user sessions
-conversations: Dict[str, List[Dict]] = {}
-
-def get_or_create_conversation(session_id: str = "default") -> List[Dict]:
-    """Get existing conversation or create a new one"""
-    if session_id not in conversations:
-        conversations[session_id] = []
-    return conversations[session_id]
-
-def stream_completion(openai, **kwargs) -> Iterator[str]:
-    """Stream OpenAI completion responses"""
+@router.post("/sessions")
+async def create_session(req: ChatSessionCreate, db: Session = Depends(get_db)):
+    """Create a new chat session"""
     try:
-        for chunk in openai.chat.completions.create(stream=True, **kwargs):
-            # Check if chunk has choices and the first choice has content
-            if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if hasattr(delta, 'content') and delta.content:
-                    yield f"data: {delta.content}\n\n"
-        yield "data: [DONE]\n\n"
+        session = ChatService.create_session(db, req.title)
+        return session
     except Exception as e:
-        yield f"data: Error: {str(e)}\n\n"
-        yield "data: [DONE]\n\n"
+        raise HTTPException(status_code=500, detail=f"Error creating session: {str(e)}")
+
+@router.get("/sessions", response_model=ChatSessionsResponse)
+async def get_sessions(db: Session = Depends(get_db)):
+    """Get all chat sessions"""
+    try:
+        return ChatService.get_all_sessions(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching sessions: {str(e)}")
+
+@router.get("/sessions/{session_id}/history", response_model=ChatHistoryResponse)
+async def get_session_history(session_id: str, db: Session = Depends(get_db)):
+    """Get chat history for a specific session"""
+    try:
+        return ChatService.get_session_history(db, session_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching session history: {str(e)}")
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, db: Session = Depends(get_db)):
+    """Delete a chat session"""
+    try:
+        success = ChatService.delete_session(db, session_id)
+        if success:
+            return {"message": "Session deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Session not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting session: {str(e)}")
 
 @router.post("/message", 
     responses={
@@ -69,9 +85,9 @@ data: [DONE]
         }
     }
 )
-async def send_message(req: SimpleChatRequest, session_id: str = "default"):
+async def send_message(req: SimpleChatRequest, session_id: str = "default", db: Session = Depends(get_db)):
     """
-    Send a message to the chatbot. The backend manages conversation history.
+    Send a message to the chatbot. The backend manages conversation history with persistent storage.
     Always streams responses and uses RAG for context.
     
     The response is streamed as Server-Sent Events (SSE) format where each chunk
@@ -86,12 +102,16 @@ async def send_message(req: SimpleChatRequest, session_id: str = "default"):
     3. data: [SOURCES]{"sources":[{"document_id":"abc","filename":"doc.pdf","page":1}]}
     4. data: [DONE]
     """
-    # Get conversation history
-    conversation = get_or_create_conversation(session_id)
     
-    # Add user message to conversation
-    user_message = {"role": "user", "content": req.message}
-    conversation.append(user_message)
+    # Ensure session exists
+    ChatService.get_or_create_session(db, session_id)
+    
+    # Add user message to database
+    ChatService.add_message(db, session_id, "user", req.message)
+    
+    # Get conversation history from database
+    history = ChatService.get_session_history(db, session_id)
+    conversation = [{"role": msg.role, "content": msg.content} for msg in history.messages]
     
     # Use RAG to augment messages with relevant context
     rag_engine = RAGEngine()
@@ -123,8 +143,8 @@ async def send_message(req: SimpleChatRequest, session_id: str = "default"):
                 metadata = StreamingChatMetadata(sources=sources)
                 yield f"data: [SOURCES]{metadata.model_dump_json()}\n\n"
             
-            # Add assistant response to conversation history
-            conversation.append({"role": "assistant", "content": assistant_response})
+            # Add assistant response to database with sources
+            ChatService.add_message(db, session_id, "assistant", assistant_response, sources)
             yield "data: [DONE]\n\n"
             
         except Exception as e:
@@ -134,18 +154,21 @@ async def send_message(req: SimpleChatRequest, session_id: str = "default"):
     return StreamingResponse(generate_response(), media_type="text/event-stream")
 
 @router.post("/message-sync", response_model=ChatResponse)
-async def send_message_sync(req: SimpleChatRequest, session_id: str = "default"):
+async def send_message_sync(req: SimpleChatRequest, session_id: str = "default", db: Session = Depends(get_db)):
     """
     Send a message to the chatbot with a synchronous, structured response.
     Includes source references in the response metadata.
     """
     
-    # Get conversation history
-    conversation = get_or_create_conversation(session_id)
+    # Ensure session exists
+    ChatService.get_or_create_session(db, session_id)
     
-    # Add user message to conversation
-    user_message = {"role": "user", "content": req.message}
-    conversation.append(user_message)
+    # Add user message to database
+    ChatService.add_message(db, session_id, "user", req.message)
+    
+    # Get conversation history from database
+    history = ChatService.get_session_history(db, session_id)
+    conversation = [{"role": msg.role, "content": msg.content} for msg in history.messages]
     
     # Use RAG to augment messages with relevant context
     rag_engine = RAGEngine()
@@ -163,26 +186,37 @@ async def send_message_sync(req: SimpleChatRequest, session_id: str = "default")
         
         assistant_response = completion.choices[0].message.content
         
-        # Add assistant response to conversation history
-        conversation.append({"role": "assistant", "content": assistant_response})
-        
         # Get sources used
         sources = rag_engine.get_last_sources()
+        
+        # Add assistant response to database with sources
+        ChatService.add_message(db, session_id, "assistant", assistant_response, sources)
         
         return ChatResponse(response=assistant_response, sources=sources)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
 
+# Legacy endpoints for backward compatibility
 @router.get("/history")
-async def get_conversation_history(session_id: str = "default"):
-    """Get the current conversation history for a session"""
-    conversation = get_or_create_conversation(session_id)
-    return {"messages": conversation}
+async def get_conversation_history(session_id: str = "default", db: Session = Depends(get_db)):
+    """Get the current conversation history for a session (legacy endpoint)"""
+    try:
+        history = ChatService.get_session_history(db, session_id)
+        # Convert to legacy format
+        messages = [{"role": msg.role, "content": msg.content} for msg in history.messages]
+        return {"messages": messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching history: {str(e)}")
 
 @router.delete("/history")
-async def clear_conversation_history(session_id: str = "default"):
-    """Clear the conversation history for a session"""
-    if session_id in conversations:
-        del conversations[session_id]
-    return {"message": "Conversation history cleared"}
+async def clear_conversation_history(session_id: str = "default", db: Session = Depends(get_db)):
+    """Clear the conversation history for a session (legacy endpoint)"""
+    try:
+        success = ChatService.delete_session(db, session_id)
+        if success:
+            return {"message": "Conversation history cleared"}
+        else:
+            return {"message": "Session not found or already empty"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing history: {str(e)}")

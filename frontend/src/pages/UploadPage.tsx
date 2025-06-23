@@ -1,10 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Link } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { cn } from "../utils";
+
+interface ChatSession {
+  id: string;
+  title: string;
+  last_message?: string;
+}
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const response = await fetch('/api/chat/sessions');
+      if (response.ok) {
+        const data = await response.json();
+        setSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
+  const handleSessionSelect = (sessionId: string) => {
+    window.location.href = `/?session=${sessionId}`;
+  };
+
+  const handleNewChat = () => {
+    const newSessionId = crypto.randomUUID();
+    window.location.href = `/?session=${newSessionId}`;
+  };
 
   const handleUpload = async () => {
     if (!file) return;
@@ -33,8 +67,30 @@ export default function UploadPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar>
-        <h2 className="font-semibold mb-4">RAG Chat</h2>
+      <Sidebar 
+        sessions={sessions.map(s => ({
+          id: s.id,
+          title: s.title,
+          lastMessage: s.last_message
+        }))}
+        currentSessionId={undefined}
+        onSessionSelect={handleSessionSelect}
+      >
+        <div className="mb-6">
+          <h2 className="font-semibold mb-4">RAG Chat</h2>
+          <button
+            onClick={handleNewChat}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-4 py-2.5",
+              "bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium",
+              "transition-all duration-200 hover:shadow-md active:scale-95",
+              "border border-blue-700/20"
+            )}
+          >
+            <Plus size={18} />
+            New Chat
+          </button>
+        </div>
         <nav className="flex flex-col gap-2">
           <Link to="/" className="px-3 py-2 rounded hover:bg-gray-100 text-gray-700">
             Chat
