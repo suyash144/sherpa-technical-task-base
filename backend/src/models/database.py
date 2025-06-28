@@ -115,24 +115,3 @@ def get_db():
     finally:
         db.close() 
 
-# Migration helper function
-def migrate_existing_sources():
-    """
-    Helper function to migrate existing MessageSource records to new schema.
-    Call this once after updating the database schema.
-    """
-    db = SessionLocal()
-    try:
-        # Update all existing records to be document type
-        db.execute(
-            "UPDATE message_sources SET source_type = :source_type WHERE source_type IS NULL",
-            {"source_type": SourceType.DOCUMENT.value}
-        )
-        db.commit()
-        print("Successfully migrated existing sources to document type")
-    except Exception as e:
-        db.rollback()
-        print(f"Migration failed: {e}")
-    finally:
-        db.close()
-

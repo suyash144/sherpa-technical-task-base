@@ -58,7 +58,7 @@ class RAGEngine:
                         document_id=f"web_{result.url}",
                         filename=result.title,
                         page=0,
-                        relevance_score=0.9,  # High relevance for recent web info
+                        relevance_score=2,  # High relevance for recent web info. In future, would not be hardcoded.
                         url=result.url,
                         source_type="web",
                         domain=result.domain,
@@ -75,6 +75,9 @@ class RAGEngine:
             "role": "system",
             "content": (
                 "You are a helpful assistant. "
+                "You have access to web search functionality through an external API. "
+                "When users ask questions that require current information or web searches, "
+                "you should use the available search tools rather than saying you cannot search the web."
                 "Use the following context to answer the user's question. "
                 "The context is from uploaded documents.\n\n"
                 + (" and recent web search results" if search_web else "") + ".\n\n"
