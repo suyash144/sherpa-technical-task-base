@@ -81,3 +81,24 @@ class VectorStore:
             text = meta["text"]
             results.append((text, meta, float(dist)))
         return results
+    
+    def compute_text_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute L2 distance between two text strings using the same embedding model.
+        Returns the same type of distance score as similarity_search.
+        """
+        openai = get_openai()
+        
+        # Get embeddings for both texts
+        resp = openai.embeddings.create(
+            input=[text1, text2],
+            model=settings.azure_openai_embedding_deployment
+        )
+        
+        emb1 = np.array(resp.data[0].embedding).astype("float32")
+        emb2 = np.array(resp.data[1].embedding).astype("float32")
+        
+        # Compute L2 distance (same as FAISS IndexFlatL2)
+        distance = np.linalg.norm(emb1 - emb2)
+        
+        return float(distance)

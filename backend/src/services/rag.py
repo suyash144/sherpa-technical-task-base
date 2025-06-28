@@ -54,11 +54,14 @@ class RAGEngine:
                 
                 # Track web sources
                 for result in web_results:
+                    web_content = result.title + result.description
+                    relevance_score = self.store.compute_text_similarity(user_query, web_content)
+
                     web_source = SourceReference(
                         document_id=f"web_{result.url}",
                         filename=result.title,
                         page=0,
-                        relevance_score=2,  # High relevance for recent web info. In future, would not be hardcoded.
+                        relevance_score=relevance_score + 1,  # Ensure web sources have higher relevance. This is a temporary hack.
                         url=result.url,
                         source_type="web",
                         domain=result.domain,
