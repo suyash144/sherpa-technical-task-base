@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     azure_openai_deployment: str            # Chat completion deployment name
     azure_openai_embedding_deployment: str  # Embeddings deployment name
     openai_model_temperature: float = 0.7
+    brave_api_key: str
 
     vector_store_path: str = "/app/data/vector_store"
     faiss_index_file: str = "faiss.index"
