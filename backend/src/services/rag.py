@@ -88,7 +88,7 @@ class RAGEngine:
         }
         return [sys_prompt] + messages
 
-    def _should_search_web(self, query: str, existing_docs: List[Tuple]) -> bool:
+    def _should_search_web(self, query: str, existing_docs: List[Tuple]=None) -> bool:
         """
         Decide whether to include web search based on query and existing results. 
         There are three main conditions:
@@ -142,7 +142,10 @@ class RAGEngine:
 
     def get_last_sources(self) -> List[SourceReference]:
         """Return the sources used in the last augment_messages call"""
-        return self.last_used_sources.copy()
+        lus = self.last_used_sources.copy()
+        lus.sort(key=lambda x: x.relevance_score, reverse=True)
+        lus = lus[:4]
+        return lus
     
     def get_document_sources(self) -> List[SourceReference]:
         """Return only document sources from last search"""

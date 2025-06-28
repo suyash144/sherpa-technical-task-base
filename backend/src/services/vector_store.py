@@ -21,6 +21,9 @@ class VectorStore:
         self.meta_path = os.path.join(settings.vector_store_path, settings.metadata_file)
         self._ensure_storage_dir()
         self.index, self.metadata = self._load_or_init()
+    
+    def __len__(self):
+        return len(self.metadata)
 
     def _ensure_storage_dir(self):
         os.makedirs(settings.vector_store_path, exist_ok=True)
