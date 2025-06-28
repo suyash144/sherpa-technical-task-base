@@ -247,3 +247,9 @@ checkpoints/
 local/
 dev/
 test_uploads/
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/node_modules/.bin/*
+
+frontend/*
